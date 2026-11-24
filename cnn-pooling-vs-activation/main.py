@@ -212,8 +212,7 @@ def generate_testing_charts(dataset_name):
         with open(os.path.join("results", fname), "r") as f:
             results = json.load(f)
 
-        fetched_dataset_name, pool, activation, batch_size, epochs, seed = parse_fname(fname=fname,
-                                                                                       suffix="_results.json")
+        fetched_dataset_name, pool, activation, _, _, _ = parse_fname(fname=fname, suffix="_results.json")
 
         if dataset_name != fetched_dataset_name:
             continue
@@ -254,33 +253,25 @@ def workflow(dataset_name, pool, activation, epochs, batch_size, verbose, seed, 
 
 def get_agg_files(dataset_name, epochs, batch_sizes, activations, pools, path, suffix):
     fnames = []
-
     for fname in sorted(os.listdir(path)):
-
         if not fname.endswith(suffix):
-            print(f"skipping: {fname}")
             continue
 
         fetched_dataset_name, pool, activation, batch_size, epoch, _ = parse_fname(fname, suffix=suffix)
 
         if fetched_dataset_name != dataset_name:
-            # print(f"skipping: {dataset_name} != {fetched_dataset_name}")
             continue
 
         if pools and pool not in pools:
-            print(f"skipping: {pool}")
             continue
 
         if epochs and int(epoch) not in epochs:
-            print(f"skipping: {epoch}")
             continue
 
         if activations and activation not in activations:
-            print(f"skipping: {activation}")
             continue
 
         if batch_sizes and int(batch_size) not in batch_sizes:
-            print(f"skipping: {batch_size}")
             continue
 
         fnames.append(fname)
@@ -288,7 +279,7 @@ def get_agg_files(dataset_name, epochs, batch_sizes, activations, pools, path, s
     return fnames
 
 
-def agg_results(dataset_name, epochs, batch_sizes, activations, pools, overwrite):
+def agg_results(dataset_name, epochs, batch_sizes, activations, pools, overwrite, verbose):
     """
     Aggregate testing results from matching experimental runs.
 
@@ -302,6 +293,10 @@ def agg_results(dataset_name, epochs, batch_sizes, activations, pools, overwrite
     :param pools: List of pooling methods to include.
     :param overwrite: "a" to ask, "y" to overwrite,
                       or "n" to skip existing files.
+    :param verbose: Aggregation verbosity:
+                0=silent,
+                1=warnings and summaries,
+                2=detailed file-level logs.
     :return: None.
 
     Empty filter lists include all available values.
@@ -339,11 +334,17 @@ def agg_results(dataset_name, epochs, batch_sizes, activations, pools, overwrite
                            path="results", suffix="_results.json")
 
     if not fnames:
-        raise ValueError("No matching result files found.")
+        if verbose > 0:
+            print(f"Warning: No matching result files found for "
+                  f"dataset={dataset_name}, pool={pool_name}, "
+                  f"activation={activation_name}, batch_size={batch_name}, "
+                  f"epochs={epoch_name}. Skipping aggregation.")
+        return
 
     j_list = {}
     for fname in fnames:
-        print(f"aggregating file: {fname}")
+        if verbose > 1:
+            print(f"aggregating file: {fname}")
         with open(os.path.join("results", fname)) as f:
             j = json.load(f)
         for k, v in j.items():
@@ -356,11 +357,37 @@ def agg_results(dataset_name, epochs, batch_sizes, activations, pools, overwrite
     with open(out_path, "w") as f:
         json.dump(j_agg, f, indent=4)
 
-    print(f"Successfully aggregated {len(fnames)} results.")
+    if verbose > 0:
+        print(f"Successfully aggregated {len(fnames)} results into {out_fname}.")
 
 
-def aggregate(dataset_name, epochs, batch_sizes, activations, pools):
-    agg_results(dataset_name, epochs, batch_sizes, activations, pools, overwrite="a")
+def aggregate_results_per_activation_pool(dataset_name, epochs, batch_sizes, activations, pools, verbose, overwrite):
+    # Aggregate the results for different seeds
+    for activation in activations:
+        for pool in pools:
+            agg_results(dataset_name, epochs=epochs, batch_sizes=batch_sizes, activations=[activation], pools=[pool],
+                        verbose=verbose, overwrite=overwrite)
+
+
+def aggregate_results_per_pool(dataset_name, epochs, batch_sizes, activations, pools, verbose, overwrite):
+    for pool in pools:
+        agg_results(dataset_name, epochs=epochs, batch_sizes=batch_sizes, activations=activations, pools=[pool],
+                    verbose=verbose, overwrite=overwrite)
+
+
+def aggregate_results_per_activation(dataset_name, epochs, batch_sizes, activations, pools, verbose, overwrite):
+    for activation in activations:
+        agg_results(dataset_name, epochs=epochs, batch_sizes=batch_sizes, activations=[activation], pools=pools,
+                    verbose=verbose, overwrite=overwrite)
+
+
+def aggregate(dataset_name, epochs, batch_sizes, activations, pools, verbose, overwrite):
+    aggregate_results_per_activation_pool(dataset_name, epochs, batch_sizes, activations, pools, verbose=verbose,
+                                          overwrite=overwrite)
+    aggregate_results_per_activation(dataset_name, epochs, batch_sizes, activations, pools, verbose=verbose,
+                                     overwrite=overwrite)
+    aggregate_results_per_pool(dataset_name, epochs, batch_sizes, activations, pools, verbose=verbose,
+                               overwrite=overwrite)
 
 
 def main():
@@ -382,7 +409,11 @@ def main():
                         help="Display training and validation accuracy plots (default: disabled)")
     parser.add_argument("--verbose", type=int, choices=[0, 1, 2], default=0,
                         help="Training verbosity: 0=silent, 1=progress bar, 2=epoch logs (default: 0)")
-    parser.add_argument("--agg", action="store_true", help="Aggregate experimental results")
+    parser.add_argument("--agg", action="store_true", help="Aggregate experimental results across all pooling "
+                                                           "methods and activation functions for the selected "
+                                                           "dataset, epoch count, and batch size.")
+    parser.add_argument("--overwrite", type=str, default="a", choices=["a", "y", "n"],
+                        help="Only for the aggregation, a for ask, y for yes means to overwrite, and n for not overwriting")
     args = parser.parse_args()
 
     if args.epochs <= 0:
@@ -397,8 +428,8 @@ def main():
     activations = (activation_functions if args.activation == "all" else [args.activation])
 
     if args.agg:
-        aggregate(dataset_name, epochs=[args.epochs], batch_sizes=[args.batch_size], activations=activations,
-                  pools=pools)
+        aggregate(dataset_name, epochs=[args.epochs], batch_sizes=[args.batch_size], activations=activation_functions,
+                  pools=pooling_methods, verbose=args.verbose, overwrite=args.overwrite)
 
     if args.charts:
         generate_charts(dataset_name)
