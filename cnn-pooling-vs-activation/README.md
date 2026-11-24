@@ -15,30 +15,32 @@ activation functions:
 - Leaky ReLu
 - ELU
 
-# Calling the different settings
+# Calling it
+
+Example:
 
 ```
-python main.py --pool avg --activation relu ;
-python main.py --pool max --activation relu ;
+python main.py --dataset mnist --pool avg --activation relu --seeds 1
+```
 
-python main.py --pool avg --activation tanh ;
-python main.py --pool max --activation tanh ;
+MNIST
 
-python main.py --pool avg --activation sigmoid ;
-python main.py --pool max --activation sigmoid 
+For all options
 
-python main.py --pool avg --activation swish ;
-python main.py --pool max --activation swish ;
+```
+python main.py --dataset mnist --pool all --activation all --seeds 1 2 3
+python main.py --dataset fashion_mnist --pool all --activation all --seeds 1 2 3
+python main.py --dataset kmnist --pool all --activation all --seeds 1 2 3
+python main.py --dataset emnist-balanced --pool all --activation all --seeds 1 2 3
+```
 
-python main.py --pool avg --activation gelu ;
-python main.py --pool max --activation gelu ;
+## To aggregate the results
 
-python main.py --pool avg --activation leaky_relu ;
-python main.py --pool max --activation leaky_relu ;
-
-python main.py --pool avg --activation elu ;
-python main.py --pool max --activation elu ;
-
+```
+python main.py --dataset mnist --pool all --activation all --agg --verbose 1 --overwrite y
+python main.py --dataset fashion_mnist --pool all --activation all --agg --verbose 2 --overwrite y
+python main.py --dataset kmnist --pool all --activation all --agg --verbose 2 --overwrite y
+python main.py --dataset emnist-balanced --pool all --activation all --agg --verbose 2 --overwrite y
 
 ```
 
@@ -47,5 +49,8 @@ python main.py --pool max --activation elu ;
 The charts file is to be used by charts.js
 
 ```
-python main.py --charts
+python main.py --charts --dataset mnist
+python main.py --charts --dataset fashion_mnist
+python main.py --charts --dataset kmnist
+python main.py --charts --dataset emnist-balanced
 ```
