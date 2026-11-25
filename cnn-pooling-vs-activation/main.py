@@ -201,39 +201,94 @@ def generate_validation_charts(dataset_name):
         f.write("\n")
 
 
-def generate_testing_charts(dataset_name):
-    labels = []
-    accuracies = []
+# def generate_testing_charts(dataset_name):
+#     labels = []
+#     accuracies = []
+#
+#     for fname in sorted(os.listdir("results")):
+#         if not fname.endswith("_results.json"):
+#             continue
+#
+#         with open(os.path.join("results", fname), "r") as f:
+#             results = json.load(f)
+#
+#         fetched_dataset_name, pool, activation, _, _, _ = parse_fname(fname=fname, suffix="_results.json")
+#
+#         if dataset_name != fetched_dataset_name:
+#             continue
+#
+#         labels.append(f"{get_pool_title(pool)} + {get_activation_title(activation)}")
+#
+#         accuracies.append(results["test_accuracy"])
+#
+#     if not labels:
+#         raise ValueError("No testing results found.")
+#
+#     chart_data = {"labels": labels, "datasets": [{"label": "Test Accuracy", "data": accuracies}]}
+#
+#     with open(f"results/{dataset_name}_charts_js_testing_data.js", "w") as f:
+#         json.dump(chart_data, f, indent=4)
+#         f.write("\n")
 
+
+def generate_testing_per_pair_charts(dataset_name, batch_size, epochs):
+    """
+    Generate testing chart data from aggregated results for each
+    pooling method and activation function pair.
+
+    Aggregates across pooling methods or activation functions
+    are addressed in separate functions.
+
+    :param dataset_name: Dataset name.
+    :param batch_size: Training batch size.
+    :param epochs: Number of training epochs.
+    :return: None.
+    """
+    labels = []
+    mean_accuracies = []
+    min_accuracies = []
+    max_accuracies = []
+    suffix = "__agg-results.json"
     for fname in sorted(os.listdir("results")):
-        if not fname.endswith("_results.json"):
+        if not fname.endswith(suffix):
+            continue
+
+        fetched_dataset_name, pool, activation, fetched_batch_size, fetched_epochs = (
+            fname.removesuffix(suffix).split("__"))
+
+        # to exclude aggregates of "all" either in the pool or activations.
+        if pool not in POOL_TITLES or activation not in ACTIVATION_TITLES:
+            continue
+
+        if dataset_name != fetched_dataset_name or int(fetched_batch_size) != batch_size or epochs != int(
+                fetched_epochs):
             continue
 
         with open(os.path.join("results", fname), "r") as f:
             results = json.load(f)
 
-        fetched_dataset_name, pool, activation, _, _, _ = parse_fname(fname=fname, suffix="_results.json")
-
-        if dataset_name != fetched_dataset_name:
-            continue
-
         labels.append(f"{get_pool_title(pool)} + {get_activation_title(activation)}")
 
-        accuracies.append(results["test_accuracy"])
+        accuracy = results["test_accuracy"]
+        mean_accuracies.append(accuracy["mean"])
+        min_accuracies.append(accuracy["min"])
+        max_accuracies.append(accuracy["max"])
 
     if not labels:
         raise ValueError("No testing results found.")
 
-    chart_data = {"labels": labels, "datasets": [{"label": "Test Accuracy", "data": accuracies}]}
+    chart_data = {"labels": labels, "datasets": [
+        {"label": "Test Accuracy", "data": mean_accuracies, "min": min_accuracies, "max": max_accuracies}]}
 
-    with open(f"results/{dataset_name}_charts_js_testing_data.js", "w") as f:
+    with open(f"results/{dataset_name}_charts_js_pairs_testing_data.js", "w") as f:
         json.dump(chart_data, f, indent=4)
         f.write("\n")
 
 
-def generate_charts(dataset_name):
-    generate_validation_charts(dataset_name)
-    generate_testing_charts(dataset_name)
+def generate_charts(dataset_name, batch_size, epochs):
+    # generate_validation_charts(dataset_name)
+    # generate_testing_charts(dataset_name)
+    generate_testing_per_pair_charts(dataset_name, batch_size, epochs)
 
 
 def workflow(dataset_name, pool, activation, epochs, batch_size, verbose, seed, dataset=None):
@@ -432,7 +487,7 @@ def main():
                   pools=pooling_methods, verbose=args.verbose, overwrite=args.overwrite)
 
     if args.charts:
-        generate_charts(dataset_name)
+        generate_charts(dataset_name, batch_size=args.batch_size, epochs=args.epochs)
 
     if args.charts or args.agg:
         return
