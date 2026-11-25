@@ -23,10 +23,6 @@ Example:
 python main.py --dataset mnist --pool avg --activation relu --seeds 1
 ```
 
-MNIST
-
-For all options
-
 ```
 python main.py --dataset mnist --pool all --activation all --seeds 1 2 3
 python main.py --dataset fashion_mnist --pool all --activation all --seeds 1 2 3
@@ -37,16 +33,16 @@ python main.py --dataset emnist-balanced --pool all --activation all --seeds 1 2
 ## To aggregate the results
 
 ```
-python main.py --dataset mnist --pool all --activation all --agg --verbose 1 --overwrite y
-python main.py --dataset fashion_mnist --pool all --activation all --agg --verbose 2 --overwrite y
-python main.py --dataset kmnist --pool all --activation all --agg --verbose 2 --overwrite y
-python main.py --dataset emnist-balanced --pool all --activation all --agg --verbose 2 --overwrite y
-
+python main.py --dataset mnist --pool all --activation all --agg --verbose 2 --overwrite a
+python main.py --dataset fashion_mnist --pool all --activation all --agg --verbose 2 --overwrite a
+python main.py --dataset kmnist --pool all --activation all --agg --verbose 2 --overwrite a
+python main.py --dataset emnist-balanced --pool all --activation all --agg --verbose 2 --overwrite a
 ```
 
 ## To generate the charts
 
 The charts file is to be used by charts.js
+Note: this command does not filter based on batch_size nor on epochs.
 
 ```
 python main.py --charts --dataset mnist
