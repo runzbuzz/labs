@@ -15,13 +15,16 @@ activation functions:
 - Leaky ReLu
 - ELU
 
-# Calling it
+# Training
 
-Example:
+To train the network, you can either do it for a specific set of configurations
+(e.g., Average Pooling and ReLu Activation) something like this:
 
 ```
 python main.py --dataset mnist --pool avg --activation relu --seeds 1
 ```
+
+or for the whole supported configurations (pooling and activation functions).
 
 ```
 python main.py --dataset mnist --pool all --activation all --seeds 1 2 3
@@ -41,8 +44,7 @@ python main.py --dataset emnist-balanced --agg --verbose 2 --overwrite n
 
 ## To generate the charts
 
-The charts file is to be used by charts.js
-Note: this command does not filter based on batch_size nor on epochs.
+The charts data are designed to be used by charts.js.
 
 ```
 python main.py --charts --dataset mnist
@@ -50,3 +52,4 @@ python main.py --charts --dataset fashion_mnist
 python main.py --charts --dataset kmnist
 python main.py --charts --dataset emnist-balanced
 ```
+

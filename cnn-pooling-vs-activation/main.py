@@ -168,37 +168,37 @@ def save_results(dataset_name, pool, activation, epochs, batch_size, loss, accur
         json.dump(results, f, indent=4)
 
 
-def generate_validation_charts(dataset_name):
-    datasets = []
-
-    for fname in os.listdir("models"):
-        if not fname.endswith("_history.json"):
-            continue
-
-        path = os.path.join("models", fname)
-
-        with open(path, "r") as f:
-            history = json.load(f)
-
-        # Example: avg_relu_128_10_history.json
-        fetched_dataset_name, pool, activation, batch_size, epochs, seed = parse_fname(fname=fname,
-                                                                                       suffix="_history.json")
-
-        if dataset_name != fetched_dataset_name:
-            continue
-
-        datasets.append(
-            {"label": f"{get_pool_title(pool)} + {get_activation_title(activation)}", "data": history["val_accuracy"],
-             "fill": False, "tension": 0.2})
-
-    if not datasets:
-        raise ValueError("No training history files found.")
-
-    chart_data = {"labels": list(range(1, max(len(d["data"]) for d in datasets) + 1)), "datasets": datasets}
-
-    with open(f"results/{dataset_name}_charts_js_validation_data.js", "w") as f:
-        json.dump(chart_data, f, indent=4)
-        f.write("\n")
+# def generate_validation_charts(dataset_name):
+#     datasets = []
+#
+#     for fname in os.listdir("models"):
+#         if not fname.endswith("_history.json"):
+#             continue
+#
+#         path = os.path.join("models", fname)
+#
+#         with open(path, "r") as f:
+#             history = json.load(f)
+#
+#         # Example: avg_relu_128_10_history.json
+#         fetched_dataset_name, pool, activation, batch_size, epochs, seed = parse_fname(fname=fname,
+#                                                                                        suffix="_history.json")
+#
+#         if dataset_name != fetched_dataset_name:
+#             continue
+#
+#         datasets.append(
+#             {"label": f"{get_pool_title(pool)} + {get_activation_title(activation)}", "data": history["val_accuracy"],
+#              "fill": False, "tension": 0.2})
+#
+#     if not datasets:
+#         raise ValueError("No training history files found.")
+#
+#     chart_data = {"labels": list(range(1, max(len(d["data"]) for d in datasets) + 1)), "datasets": datasets}
+#
+#     with open(f"results/{dataset_name}_charts_js_validation_data.js", "w") as f:
+#         json.dump(chart_data, f, indent=4)
+#         f.write("\n")
 
 
 # def generate_testing_charts(dataset_name):
@@ -285,64 +285,232 @@ def generate_testing_per_pair_charts(dataset_name, batch_size, epochs):
         f.write("\n")
 
 
-def generate_validation_per_activation_charts(dataset_name, batch_size, epochs):
-    """
-    Generate validation chart data from aggregated results for each
-    pooling method and activation function pair.
+# def generate_validation_per_pair_charts(dataset_name, batch_size, epochs):
+#     """
+#     Generate validation chart data from aggregated results for each
+#     pooling method and activation function pair.
+#
+#     Aggregates across pooling methods or activation functions
+#     are addressed in separate functions.
+#
+#     :param dataset_name: Dataset name.
+#     :param batch_size: Training batch size.
+#     :param epochs: Number of training epochs.
+#     :return: None.
+#     """
+#     labels = []
+#     mean_accuracies = []
+#     min_accuracies = []
+#     max_accuracies = []
+#     suffix = "__agg-histories.json"
+#     for fname in sorted(os.listdir("results")):
+#         if not fname.endswith(suffix):
+#             continue
+#
+#         fetched_dataset_name, pool, activation, fetched_batch_size, fetched_epochs = (
+#             fname.removesuffix(suffix).split("__"))
+#
+#         # to exclude aggregates of "all" either in the pool or activations.
+#         if pool not in POOL_TITLES or activation not in ACTIVATION_TITLES:
+#             continue
+#
+#         if dataset_name != fetched_dataset_name or int(fetched_batch_size) != batch_size or epochs != int(
+#                 fetched_epochs):
+#             continue
+#
+#         with open(os.path.join("results", fname), "r") as f:
+#             results = json.load(f)
+#
+#         labels.append(f"{get_pool_title(pool)} + {get_activation_title(activation)}")
+#
+#         accuracy = results["val_accuracy"]
+#         mean_accuracies.append(accuracy["mean"])
+#         min_accuracies.append(accuracy["min"])
+#         max_accuracies.append(accuracy["max"])
+#
+#     if not labels:
+#         raise ValueError("No testing results found.")
+#
+#     chart_data = {"labels": labels, "datasets": [
+#         {"label": "Validation Accuracy", "data": mean_accuracies, "min": min_accuracies, "max": max_accuracies}]}
+#
+#     with open(f"results/{dataset_name}_charts_js_pairs_validation_data.js", "w") as f:
+#         json.dump(chart_data, f, indent=4)
+#         f.write("\n")
 
-    Aggregates across pooling methods or activation functions
-    are addressed in separate functions.
+
+# def generate_validation_per_activation_charts(dataset_name, batch_size, epochs, activation):
+#     """
+#     Generate validation chart data from aggregated results for each
+#     pooling method and activation function pair.
+#
+#     Aggregates across pooling methods or activation functions
+#     are addressed in separate functions.
+#
+#     :param dataset_name: Dataset name.
+#     :param batch_size: Training batch size.
+#     :param epochs: Number of training epochs.
+#     :return: None.
+#     """
+#     labels = []
+#     mean_accuracies = []
+#     min_accuracies = []
+#     max_accuracies = []
+#     suffix = "__agg-histories.json"
+#     for fname in sorted(os.listdir("results")):
+#         if not fname.endswith(suffix):
+#             continue
+#
+#         fetched_dataset_name, pool, fetched_activation, fetched_batch_size, fetched_epochs = (
+#             fname.removesuffix(suffix).split("__"))
+#
+#         # to exclude aggregates of "all" either in the pool or activations.
+#         if pool not in POOL_TITLES or fetched_activation not in ACTIVATION_TITLES:
+#             continue
+#
+#         if dataset_name != fetched_dataset_name or int(fetched_batch_size) != batch_size or epochs != int(
+#                 fetched_epochs) or activation != fetched_activation:
+#             continue
+#
+#         with open(os.path.join("results", fname), "r") as f:
+#             results = json.load(f)
+#
+#         # labels.append(f"{get_pool_title(pool)} + {get_activation_title(activation)}")
+#
+#         accuracy = results["val_accuracy"]
+#         mean_accuracies.append(accuracy["mean"])
+#         min_accuracies.append(accuracy["min"])
+#         max_accuracies.append(accuracy["max"])
+#
+#     chart_data = {"labels": list(range(1, epochs + 1)), "datasets": [
+#         {"label": "Validation Accuracy", "data": mean_accuracies, "min": min_accuracies, "max": max_accuracies}]}
+#
+#     with open(f"results/{dataset_name}__{activation}__charts_js_validation_data.js", "w") as f:
+#         json.dump(chart_data, f, indent=4)
+#         f.write("\n")
+
+
+def generate_validation_per_activation_charts(dataset_name, batch_size, epochs, activation):
+    """
+    Generate validation accuracy and loss chart data for a specific
+    activation function, comparing different pooling methods.
 
     :param dataset_name: Dataset name.
     :param batch_size: Training batch size.
     :param epochs: Number of training epochs.
+    :param activation: Activation function.
     :return: None.
     """
-    labels = []
-    mean_accuracies = []
-    min_accuracies = []
-    max_accuracies = []
-    suffix = "__agg-results.json"
+    labels = list(range(1, epochs + 1))
+
+    accuracy_datasets = []
+    loss_datasets = []
+
+    suffix = "__agg-histories.json"
+
     for fname in sorted(os.listdir("results")):
         if not fname.endswith(suffix):
             continue
 
-        fetched_dataset_name, pool, activation, fetched_batch_size, fetched_epochs = (
+        fetched_dataset_name, pool, fetched_activation, fetched_batch_size, fetched_epochs = (
             fname.removesuffix(suffix).split("__"))
 
-        # to exclude aggregates of "all" either in the pool or activations.
-        if pool not in POOL_TITLES or activation not in ACTIVATION_TITLES:
+        # Exclude aggregates across pooling methods or activations.
+        if pool not in POOL_TITLES or fetched_activation not in ACTIVATION_TITLES:
             continue
 
-        if dataset_name != fetched_dataset_name or int(fetched_batch_size) != batch_size or epochs != int(
-                fetched_epochs):
+        if (dataset_name != fetched_dataset_name or fetched_batch_size != str(batch_size) or fetched_epochs != str(
+                epochs) or fetched_activation != activation):
             continue
 
         with open(os.path.join("results", fname), "r") as f:
             results = json.load(f)
 
-        labels.append(f"{get_pool_title(pool)} + {get_activation_title(activation)}")
+        accuracy = results["val_accuracy"]
+        loss = results["val_loss"]
 
-        accuracy = results["test_accuracy"]
-        mean_accuracies.append(accuracy["mean"])
-        min_accuracies.append(accuracy["min"])
-        max_accuracies.append(accuracy["max"])
+        accuracy_datasets.append(
+            {"label": get_pool_title(pool), "data": accuracy["mean"], "min": accuracy["min"], "max": accuracy["max"]})
 
-    if not labels:
-        raise ValueError("No testing results found.")
+        loss_datasets.append(
+            {"label": get_pool_title(pool), "data": loss["mean"], "min": loss["min"], "max": loss["max"]})
 
-    chart_data = {"labels": labels, "datasets": [
-        {"label": "Test Accuracy", "data": mean_accuracies, "min": min_accuracies, "max": max_accuracies}]}
+    if not accuracy_datasets:
+        raise ValueError(f"No validation histories found for "
+                         f"dataset={dataset_name}, activation={activation}, "
+                         f"batch_size={batch_size}, epochs={epochs}.")
 
-    with open(f"results/{dataset_name}_charts_js_pairs_testing_data.js", "w") as f:
+    accuracy_chart_data = {"labels": labels, "datasets": accuracy_datasets}
+
+    loss_chart_data = {"labels": labels, "datasets": loss_datasets}
+
+    with open(f"results/{dataset_name}__{activation}__charts_js_validation_accuracy_data.js", "w") as f:
+        json.dump(accuracy_chart_data, f, indent=4)
+        f.write("\n")
+
+    with open(f"results/{dataset_name}__{activation}__charts_js_validation_loss_data.js", "w") as f:
+        json.dump(loss_chart_data, f, indent=4)
+        f.write("\n")
+
+
+def generate_validation_charts(dataset_name, batch_size, epochs, validation_metric):
+    """
+    Generate validation chart data for all pooling method and
+    activation function combinations.
+
+    :param dataset_name: Dataset name.
+    :param batch_size: Training batch size.
+    :param epochs: Number of training epochs.
+    :param validation_metric: Validation metric (val_accuracy or val_loss).
+    :return: None.
+    """
+    datasets = []
+
+    if validation_metric not in ("val_accuracy", "val_loss"):
+        raise ValueError(f"Unsupported validation metric: {validation_metric}")
+
+    suffix = "__agg-histories.json"
+    for fname in os.listdir("results"):
+        if not fname.endswith(suffix):
+            continue
+
+        path = os.path.join("results", fname)
+
+        with open(path, "r") as f:
+            history = json.load(f)
+
+        fetched_dataset_name, pool, activation, fetched_batch_size, fetched_epochs = (
+            fname.removesuffix(suffix).split("__"))
+
+        # Exclude aggregates across pooling methods or activations.
+        if pool not in POOL_TITLES or activation not in ACTIVATION_TITLES:
+            continue
+
+        if dataset_name != fetched_dataset_name or fetched_batch_size != str(batch_size) or fetched_epochs != str(
+                epochs):
+            continue
+
+        datasets.append({"label": f"{get_pool_title(pool)} + {get_activation_title(activation)}",
+                         "data": history[validation_metric]["mean"], "min": history[validation_metric]["min"],
+                         "max": history[validation_metric]["max"], "fill": False, "tension": 0.2})
+
+    if not datasets:
+        raise ValueError("No aggregated history files found.")
+
+    chart_data = {"labels": list(range(1, max(len(d["data"]) for d in datasets) + 1)), "datasets": datasets}
+
+    with open(f"results/{dataset_name}__charts_js_{validation_metric}_data.js", "w") as f:
         json.dump(chart_data, f, indent=4)
         f.write("\n")
 
 
 def generate_charts(dataset_name, batch_size, epochs):
-    # generate_validation_charts(dataset_name)
     # generate_testing_charts(dataset_name)
-    generate_testing_charts(dataset_name, batch_size, epochs)
+    generate_testing_per_pair_charts(dataset_name, batch_size, epochs)
+    generate_validation_charts(dataset_name, batch_size, epochs, validation_metric="val_accuracy")
+    generate_validation_charts(dataset_name, batch_size, epochs, validation_metric="val_loss")
+    for activation in ACTIVATION_TITLES:
+        generate_validation_per_activation_charts(dataset_name, batch_size, epochs, activation)
 
 
 def workflow(dataset_name, pool, activation, epochs, batch_size, verbose, seed, dataset=None):
