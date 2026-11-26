@@ -285,10 +285,64 @@ def generate_testing_per_pair_charts(dataset_name, batch_size, epochs):
         f.write("\n")
 
 
+def generate_validation_per_activation_charts(dataset_name, batch_size, epochs):
+    """
+    Generate validation chart data from aggregated results for each
+    pooling method and activation function pair.
+
+    Aggregates across pooling methods or activation functions
+    are addressed in separate functions.
+
+    :param dataset_name: Dataset name.
+    :param batch_size: Training batch size.
+    :param epochs: Number of training epochs.
+    :return: None.
+    """
+    labels = []
+    mean_accuracies = []
+    min_accuracies = []
+    max_accuracies = []
+    suffix = "__agg-results.json"
+    for fname in sorted(os.listdir("results")):
+        if not fname.endswith(suffix):
+            continue
+
+        fetched_dataset_name, pool, activation, fetched_batch_size, fetched_epochs = (
+            fname.removesuffix(suffix).split("__"))
+
+        # to exclude aggregates of "all" either in the pool or activations.
+        if pool not in POOL_TITLES or activation not in ACTIVATION_TITLES:
+            continue
+
+        if dataset_name != fetched_dataset_name or int(fetched_batch_size) != batch_size or epochs != int(
+                fetched_epochs):
+            continue
+
+        with open(os.path.join("results", fname), "r") as f:
+            results = json.load(f)
+
+        labels.append(f"{get_pool_title(pool)} + {get_activation_title(activation)}")
+
+        accuracy = results["test_accuracy"]
+        mean_accuracies.append(accuracy["mean"])
+        min_accuracies.append(accuracy["min"])
+        max_accuracies.append(accuracy["max"])
+
+    if not labels:
+        raise ValueError("No testing results found.")
+
+    chart_data = {"labels": labels, "datasets": [
+        {"label": "Test Accuracy", "data": mean_accuracies, "min": min_accuracies, "max": max_accuracies}]}
+
+    with open(f"results/{dataset_name}_charts_js_pairs_testing_data.js", "w") as f:
+        json.dump(chart_data, f, indent=4)
+        f.write("\n")
+
+
 def generate_charts(dataset_name, batch_size, epochs):
     # generate_validation_charts(dataset_name)
     # generate_testing_charts(dataset_name)
-    generate_testing_per_pair_charts(dataset_name, batch_size, epochs)
+    generate_testing_charts(dataset_name, batch_size, epochs)
 
 
 def workflow(dataset_name, pool, activation, epochs, batch_size, verbose, seed, dataset=None):
@@ -332,6 +386,100 @@ def get_agg_files(dataset_name, epochs, batch_sizes, activations, pools, path, s
         fnames.append(fname)
 
     return fnames
+
+
+def agg_histories(dataset_name, epochs, batch_sizes, activations, pools, overwrite, verbose):
+    """
+    Aggregate validation histories from matching experimental runs.
+
+    Calculates the mean, maximum, and minimum for each validation
+    metric at each epoch across all matching runs.
+
+    :param dataset_name: Dataset name.
+    :param epochs: List containing exactly one epoch count.
+    :param batch_sizes: List of batch sizes to include.
+    :param activations: List of activation functions to include.
+    :param pools: List of pooling methods to include.
+    :param overwrite: "a" to ask, "y" to overwrite,
+                      or "n" to skip existing files.
+    :param verbose: Aggregation verbosity:
+                    0=silent,
+                    1=warnings and summaries,
+                    2=detailed file-level logs.
+    :return: None.
+
+    Except for epochs, empty filter lists include all available values.
+    """
+    pool_name = "all"
+    activation_name = "all"
+    batch_name = "all"
+    if len(pools) == 1:
+        pool_name = pools[0]
+    if len(activations) == 1:
+        activation_name = activations[0]
+    if len(batch_sizes) == 1:
+        batch_name = str(batch_sizes[0])
+    if len(epochs) != 1:
+        raise ValueError("Can't merge histories if different epochs.")
+
+    epoch_name = str(epochs[0])
+
+    out_fname = f"{dataset_name}__{pool_name}__{activation_name}__{batch_name}__{epoch_name}__agg-histories.json"
+    out_path = os.path.join("results", out_fname)
+    if os.path.exists(out_path):
+        overwrite = overwrite.strip().lower()
+        if overwrite not in ("a", "y", "n"):
+            raise ValueError(f"Invalid overwrite option: {overwrite}")
+
+        if overwrite == "a":
+            answer = input(f"Aggregated histories already exist in {out_path}. "
+                           "Overwrite? [y/N]: ")
+            answer = answer.strip().lower()
+        else:
+            answer = overwrite
+        if answer != "y":
+            return None
+
+    fnames = get_agg_files(dataset_name, epochs=epochs, batch_sizes=batch_sizes, activations=activations, pools=pools,
+                           path="models", suffix="_history.json")
+
+    if not fnames:
+        if verbose > 0:
+            print(f"Warning: No matching history files found for "
+                  f"dataset={dataset_name}, pool={pool_name}, "
+                  f"activation={activation_name}, batch_size={batch_name}, "
+                  f"epochs={epoch_name}. Skipping aggregation.")
+        return
+
+    j_list = {}
+    for fname in fnames:
+        if verbose > 1:
+            print(f"aggregating file: {fname}")
+        with open(os.path.join("models", fname)) as f:
+            j = json.load(f)
+
+        for k in ("val_accuracy", "val_loss"):
+            v = j[k]
+            if len(v) != epochs[0]:
+                raise ValueError(f"Unexpected history length for {k} in {fname}: "
+                                 f"expected {epochs[0]}, found {len(v)}.")
+            j_list.setdefault(k, []).append(v)
+
+    j_agg = {}
+    for k, values in j_list.items():  # values is a list of lists
+        values_per_epoch = list(zip(*values, strict=True))
+        # we use strict flag to raise an exception in case the number of epochs is not the same
+        means = [mean(ith_vals) for ith_vals in values_per_epoch]
+        maximums = [max(ith_vals) for ith_vals in values_per_epoch]
+        minimums = [min(ith_vals) for ith_vals in values_per_epoch]
+
+        j_agg[k] = {"mean": means, "max": maximums, "min": minimums}
+
+    with open(out_path, "w") as f:
+        json.dump(j_agg, f, indent=4)
+
+    if verbose > 0:
+        print(f"Successfully aggregated {len(fnames)} histories into {out_fname}.")
 
 
 def agg_results(dataset_name, epochs, batch_sizes, activations, pools, overwrite, verbose):
@@ -436,6 +584,14 @@ def aggregate_results_per_activation(dataset_name, epochs, batch_sizes, activati
                     verbose=verbose, overwrite=overwrite)
 
 
+def aggregate_histories_per_activation_pool(dataset_name, epochs, batch_sizes, activations, pools, verbose, overwrite):
+    # Aggregate the results for different seeds
+    for activation in activations:
+        for pool in pools:
+            agg_histories(dataset_name, epochs=epochs, batch_sizes=batch_sizes, activations=[activation], pools=[pool],
+                          verbose=verbose, overwrite=overwrite)
+
+
 def aggregate(dataset_name, epochs, batch_sizes, activations, pools, verbose, overwrite):
     aggregate_results_per_activation_pool(dataset_name, epochs, batch_sizes, activations, pools, verbose=verbose,
                                           overwrite=overwrite)
@@ -443,6 +599,8 @@ def aggregate(dataset_name, epochs, batch_sizes, activations, pools, verbose, ov
                                      overwrite=overwrite)
     aggregate_results_per_pool(dataset_name, epochs, batch_sizes, activations, pools, verbose=verbose,
                                overwrite=overwrite)
+    aggregate_histories_per_activation_pool(dataset_name, epochs, batch_sizes, activations, pools, overwrite=overwrite,
+                                            verbose=verbose)
 
 
 def main():

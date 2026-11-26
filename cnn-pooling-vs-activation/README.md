@@ -33,10 +33,10 @@ python main.py --dataset emnist-balanced --pool all --activation all --seeds 1 2
 ## To aggregate the results
 
 ```
-python main.py --dataset mnist --pool all --activation all --agg --verbose 2 --overwrite a
-python main.py --dataset fashion_mnist --pool all --activation all --agg --verbose 2 --overwrite a
-python main.py --dataset kmnist --pool all --activation all --agg --verbose 2 --overwrite a
-python main.py --dataset emnist-balanced --pool all --activation all --agg --verbose 2 --overwrite a
+python main.py --dataset mnist  --agg --verbose 2 --overwrite n
+python main.py --dataset fashion_mnist --agg --verbose 2 --overwrite n
+python main.py --dataset kmnist --agg --verbose 2 --overwrite n
+python main.py --dataset emnist-balanced --agg --verbose 2 --overwrite n
 ```
 
 ## To generate the charts
